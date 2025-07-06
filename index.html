@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>謎解き回答システム</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+</head>
+<body class="bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 min-h-screen text-white">
+    <div class="container mx-auto px-4 py-8">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold mb-4 bg-gradient-to-r from-yellow-400 to-pink-400 bg-clip-text text-transparent">
+                <i class="fas fa-puzzle-piece mr-3"></i>謎解き回答システム
+            </h1>
+            <p class="text-xl text-gray-300">特定の文字列を入力して謎を解き明かそう！</p>
+        </div>
+
+        <div class="max-w-2xl mx-auto">
+            <div class="bg-white bg-opacity-10 backdrop-blur-md rounded-lg p-8 shadow-xl">
+                <div class="mb-6">
+                    <label for="answerInput" class="block text-lg font-semibold mb-3">
+                        <i class="fas fa-key mr-2"></i>回答を入力してください：
+                    </label>
+                    <div class="flex gap-3">
+                        <input 
+                            type="text" 
+                            id="answerInput" 
+                            placeholder="こちらに回答を入力..."
+                            class="flex-1 px-4 py-3 rounded-lg bg-white bg-opacity-20 border border-white border-opacity-30 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                        >
+                        <button 
+                            id="submitBtn" 
+                            class="px-6 py-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold rounded-lg hover:from-yellow-500 hover:to-orange-600 transition-all duration-200 shadow-lg"
+                        >
+                            <i class="fas fa-search mr-2"></i>判定
+                        </button>
+                    </div>
+                </div>
+
+                <div id="resultArea" class="min-h-20 p-4 bg-black bg-opacity-20 rounded-lg border border-white border-opacity-20">
+                    <div id="initialMessage" class="text-center text-gray-400">
+                        <i class="fas fa-lightbulb text-3xl mb-3"></i>
+                        <p>謎解きの回答を入力して、隠されたキーワードを発見しましょう！</p>
+                    </div>
+                    <div id="resultContent" class="hidden"></div>
+                </div>
+            </div>
+
+            <div class="mt-8 bg-white bg-opacity-10 backdrop-blur-md rounded-lg p-6 shadow-xl">
+                <h2 class="text-2xl font-bold mb-4 text-center">
+                    <i class="fas fa-trophy mr-2"></i>獲得したキーワード
+                </h2>
+                <div id="keywordCollection" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="text-center text-gray-400 col-span-full">
+                        <i class="fas fa-gem text-2xl mb-2"></i>
+                        <p>まだキーワードを獲得していません</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 bg-white bg-opacity-10 backdrop-blur-md rounded-lg p-6 shadow-xl">
+                <h2 class="text-xl font-bold mb-4">
+                    <i class="fas fa-info-circle mr-2"></i>ヒント
+                </h2>
+                <div class="space-y-2 text-gray-300">
+                    <p><i class="fas fa-chevron-right mr-2"></i>答えは日本語で入力してください</p>
+                    <p><i class="fas fa-chevron-right mr-2"></i>大文字小文字は区別されません</p>
+                    <p><i class="fas fa-chevron-right mr-2"></i>複数の謎解きが用意されています</p>
+                    <p><i class="fas fa-chevron-right mr-2"></i>全てのキーワードを集めて最終的な謎に挑戦しましょう！</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 謎解きデータベース
+        const mysteries = {
+            "りんご": {
+                keyword: "赤い果実",
+                message: "正解！甘くて美味しい果物の代表格ですね。",
+                difficulty: "初級"
+            },
+            "太陽": {
+                keyword: "光の源",
+                message: "素晴らしい！私たちに光と熱をもたらしてくれる存在です。",
+                difficulty: "初級"
+            },
+            "時計": {
+                keyword: "時の刻み",
+                message: "正解！時間を刻む大切な道具です。",
+                difficulty: "中級"
+            },
+            "虹": {
+                keyword: "七色の橋",
+                message: "美しい！雨上がりの空に現れる自然の芸術品です。",
+                difficulty: "中級"
+            },
+            "宝石": {
+                keyword: "永遠の輝き",
+                message: "まばゆい正解！美しさと価値を兼ね備えた自然の奇跡です。",
+                difficulty: "上級"
+            },
+            "星座": {
+                keyword: "夜空の地図",
+                message: "幻想的な正解！古代から人々を導いてきた天の道標です。",
+                difficulty: "上級"
+            },
+            "秘密": {
+                keyword: "隠された真実",
+                message: "深い洞察！全ての謎解きの根源にあるものです。",
+                difficulty: "最上級"
+            },
+            "答え": {
+                keyword: "探求の終点",
+                message: "哲学的な正解！全ての問いに対する究極の存在です。",
+                difficulty: "最上級"
+            }
+        };
+
+        // 獲得したキーワードを管理
+        let collectedKeywords = JSON.parse(localStorage.getItem('collectedKeywords') || '[]');
+
+        // DOM要素を取得
+        const answerInput = document.getElementById('answerInput');
+        const submitBtn = document.getElementById('submitBtn');
+        const resultArea = document.getElementById('resultArea');
+        const initialMessage = document.getElementById('initialMessage');
+        const resultContent = document.getElementById('resultContent');
+        const keywordCollection = document.getElementById('keywordCollection');
+
+        // 初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            updateKeywordDisplay();
+            
+            // Enterキーで送信
+            answerInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    checkAnswer();
+                }
+            });
+            
+            // 送信ボタンクリック
+            submitBtn.addEventListener('click', checkAnswer);
+        });
+
+        function checkAnswer() {
+            const userAnswer = answerInput.value.trim().toLowerCase();
+            
+            if (!userAnswer) {
+                showResult('error', '回答を入力してください！', '');
+                return;
+            }
+
+            // 回答をチェック
+            const mysteryKey = Object.keys(mysteries).find(key => 
+                key.toLowerCase() === userAnswer
+            );
+
+            if (mysteryKey) {
+                const mystery = mysteries[mysteryKey];
+                
+                // 既に獲得済みかチェック
+                if (collectedKeywords.includes(mystery.keyword)) {
+                    showResult('warning', 'このキーワードは既に獲得済みです！', mystery.keyword);
+                } else {
+                    // 新しいキーワードを追加
+                    collectedKeywords.push(mystery.keyword);
+                    localStorage.setItem('collectedKeywords', JSON.stringify(collectedKeywords));
+                    
+                    showResult('success', mystery.message, mystery.keyword, mystery.difficulty);
+                    updateKeywordDisplay();
+                    
+                    // 特別な演出
+                    celebrateSuccess();
+                }
+            } else {
+                showResult('error', '残念...正解ではありません。もう一度挑戦してみてください！', '');
+            }
+
+            // 入力欄をクリア
+            answerInput.value = '';
+        }
+
+        function showResult(type, message, keyword, difficulty = '') {
+            initialMessage.classList.add('hidden');
+            resultContent.classList.remove('hidden');
+            
+            let iconClass, bgColor, textColor;
+            
+            switch(type) {
+                case 'success':
+                    iconClass = 'fas fa-check-circle';
+                    bgColor = 'bg-green-500';
+                    textColor = 'text-green-100';
+                    break;
+                case 'warning':
+                    iconClass = 'fas fa-exclamation-triangle';
+                    bgColor = 'bg-yellow-500';
+                    textColor = 'text-yellow-100';
+                    break;
+                case 'error':
+                    iconClass = 'fas fa-times-circle';
+                    bgColor = 'bg-red-500';
+                    textColor = 'text-red-100';
+                    break;
+            }
+
+            const difficultyBadge = difficulty ? 
+                `<span class="inline-block px-2 py-1 bg-purple-600 text-white text-xs rounded-full ml-2">${difficulty}</span>` : '';
+
+            resultContent.innerHTML = `
+                <div class="flex items-center mb-3">
+                    <i class="${iconClass} text-2xl mr-3"></i>
+                    <span class="text-lg font-semibold">${message}</span>
+                </div>
+                ${keyword ? `
+                    <div class="mt-4 p-3 ${bgColor} ${textColor} rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-star mr-2"></i>
+                            <span class="font-bold">獲得キーワード: ${keyword}</span>
+                            ${difficultyBadge}
+                        </div>
+                    </div>
+                ` : ''}
+            `;
+        }
+
+        function updateKeywordDisplay() {
+            if (collectedKeywords.length === 0) {
+                keywordCollection.innerHTML = `
+                    <div class="text-center text-gray-400 col-span-full">
+                        <i class="fas fa-gem text-2xl mb-2"></i>
+                        <p>まだキーワードを獲得していません</p>
+                    </div>
+                `;
+                return;
+            }
+
+            keywordCollection.innerHTML = collectedKeywords.map(keyword => `
+                <div class="bg-gradient-to-r from-purple-500 to-pink-500 p-3 rounded-lg text-center shadow-lg">
+                    <i class="fas fa-gem mr-2"></i>
+                    <span class="font-semibold">${keyword}</span>
+                </div>
+            `).join('');
+
+            // 全てのキーワードを獲得した場合の特別メッセージ
+            if (collectedKeywords.length === Object.keys(mysteries).length) {
+                keywordCollection.innerHTML += `
+                    <div class="col-span-full mt-4 p-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-black rounded-lg text-center">
+                        <i class="fas fa-trophy text-2xl mr-2"></i>
+                        <span class="font-bold text-lg">🎉 おめでとうございます！全てのキーワードを獲得しました！ 🎉</span>
+                    </div>
+                `;
+            }
+        }
+
+        function celebrateSuccess() {
+            // 簡単な祝福アニメーション
+            resultContent.style.animation = 'pulse 0.5s ease-in-out';
+            setTimeout(() => {
+                resultContent.style.animation = '';
+            }, 500);
+        }
+
+        // リセット機能（隠しコマンド）
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+                if (confirm('全ての進行状況をリセットしますか？')) {
+                    localStorage.removeItem('collectedKeywords');
+                    collectedKeywords = [];
+                    updateKeywordDisplay();
+                    initialMessage.classList.remove('hidden');
+                    resultContent.classList.add('hidden');
+                }
+            }
+        });
+    </script>
+
+    <style>
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .bg-clip-text {
+            -webkit-background-clip: text;
+            background-clip: text;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .backdrop-blur-md {
+            backdrop-filter: blur(12px);
+        }
+    </style>
+</body>
+</html>
+    <script id="html_badge_script1">
+        window.__genspark_remove_badge_link = "https://www.genspark.ai/api/html_badge/" +
+            "remove_badge?token=To%2FBnjzloZ3UfQdcSaYfDkJhG2AT4yjH%2B9VRuhgp8ZUCssrrYhu7lHgTW7U9K0EbO%2BgSQI9hL9Msu4F8qYkznYYUtZrITmWBgkG9oKVppoR9uRWtR9L28OR90tmW%2Fg1DfdC%2BVN9ZItZuBkC%2FlwUdjup4Ln6LoEEPQPSfKNi2WcROcuCiibh%2BmLfI7zE240HSL2Rs5XW%2BEBXQsnAT98J0FqVfuJdA72JAM865%2FOo4WlgroWlBajkyBpWS6Mb2tGuCnwTVu2hVw%2BAfVLx3uN2Tmj1OjG7eZdcV%2BfOCo3IX0mKkfRcYDVbq6GLZ2fqk7OPS7ibNbUHoWUEw4t5pj7Yi6g80ja4OQahaznCfbtcEAS23CdO9JqOxZQLzBIjGTxSo3k2e%2Bw1mTG7TwGo1aAjPlQfc6qxX4p9e%2BP3lZrd0INBLCFZO3mTex7niEqS2IUAkOmPKiBJEBoArEeo1rvXBzRm74JK3raVcnz55ONP3nOoPd4HFnjr22l4dUpe0AqlKYVlBi9FDZIifxx4QvwtDog%3D%3D";
+        window.__genspark_locale = "ja-JP";
+        window.__genspark_token = "To/BnjzloZ3UfQdcSaYfDkJhG2AT4yjH+9VRuhgp8ZUCssrrYhu7lHgTW7U9K0EbO+gSQI9hL9Msu4F8qYkznYYUtZrITmWBgkG9oKVppoR9uRWtR9L28OR90tmW/g1DfdC+VN9ZItZuBkC/lwUdjup4Ln6LoEEPQPSfKNi2WcROcuCiibh+mLfI7zE240HSL2Rs5XW+EBXQsnAT98J0FqVfuJdA72JAM865/Oo4WlgroWlBajkyBpWS6Mb2tGuCnwTVu2hVw+AfVLx3uN2Tmj1OjG7eZdcV+fOCo3IX0mKkfRcYDVbq6GLZ2fqk7OPS7ibNbUHoWUEw4t5pj7Yi6g80ja4OQahaznCfbtcEAS23CdO9JqOxZQLzBIjGTxSo3k2e+w1mTG7TwGo1aAjPlQfc6qxX4p9e+P3lZrd0INBLCFZO3mTex7niEqS2IUAkOmPKiBJEBoArEeo1rvXBzRm74JK3raVcnz55ONP3nOoPd4HFnjr22l4dUpe0AqlKYVlBi9FDZIifxx4QvwtDog==";
+    </script>
+    
+        <script id="html_badge_script2" src="https://www.genspark.ai/html_badge.js"></script>
+        
+    <script id="html_notice_dialog_script" src="https://www.genspark.ai/notice_dialog.js"></script>
+    
